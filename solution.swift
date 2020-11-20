@@ -7,11 +7,16 @@ class Game {
     private let aiCellState: BoardCellState
 
     private(set) var isOver = false
+    private(set) var playerWinState: WinScore = .draw
     private(set) var currentState: State {
         didSet {
             isOver = currentState.isTerminal
+            if let winningState = currentState.winningCellState {
+                playerWinState = winningState == playerCellState ? .win : .loss
+            } // no need for else as default is `.draw`
         }
     }
+
 
     init(playerIsFirst: Bool) {
         self.playerCellState = playerIsFirst ? .cross : .circle
@@ -85,6 +90,14 @@ class Game {
             game.currentState.print()
         }
 
+        switch game.playerWinState {
+            case .win:
+                print("Good game! You won!")
+            case .draw:
+                print("Game is a draw.")
+            case .loss:
+                print("Oops! You lost. :(")
+        }
         print("Good night.")
 
     }
@@ -112,6 +125,13 @@ extension Game {
         let newCellState: BoardCellState
         let cellCoordinates: Coordinate
     }
+
+    enum WinScore: Int {
+        case win = 1
+        case draw = 0
+        case loss = -1
+    }
+
 }
 
 // MARK: - Data structures extensions
@@ -122,10 +142,47 @@ extension Game.State {
     }
 
     var isTerminal: Bool {
-        let isFull = allCoordinates.map { self[$0] }.allSatisfy { $0 != .empty }
-        guard !isFull else { return true }
+        winningCellState != nil
+    }
 
-        return false // TODO
+    var winningCellState: Game.BoardCellState? {
+        let isFull = allCoordinates.map { self[$0] }.allSatisfy { $0 != .empty }
+        guard !isFull else { return nil } // draw
+
+        let size = board.count
+        for cellState in [Game.BoardCellState]([.cross, .circle]) {
+            // Horizontals
+            for row in board {
+                if row.allSatisfy({ $0 == cellState }) {
+                    return cellState
+                }
+            }
+
+            // Verticals
+            for colIndex in 0..<size {
+                if Array(0..<size)
+                    .map({ board[$0][colIndex] })
+                    .allSatisfy({ $0 == cellState }) {
+                    return cellState
+                }
+            }
+
+            // Main diagonal
+            if Array(0..<size)
+                .map({ board[$0][$0] })
+                .allSatisfy({ $0 == cellState }) {
+                return cellState
+            }
+
+            // Secondary diagonal
+            if Array(0..<size)
+                .map({ board[size - 1 - $0][$0] })
+                .allSatisfy({ $0 == cellState }) {
+                return cellState
+            }
+        }
+
+        return nil
     }
 
     func successors(
