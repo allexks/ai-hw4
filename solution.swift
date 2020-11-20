@@ -45,7 +45,7 @@ class Game {
     }
 
     static func main() {
-        print("First (crosses) or second (circles)? [x/o] ")
+        print("First (crosses) or second (circles)? [x/o] ", terminator: "")
         guard let answer = readLine()?.lowercased() else { return }
         let isFirst: Bool
         if answer == "x" {
@@ -64,7 +64,7 @@ class Game {
         game.currentState.print()
 
         while !game.isOver {
-            print("Your move: [<row><col>]")
+            print("Your move: [<row><col>] ", terminator: "")
             guard
                 let input = readLine(),
                 let first = input.first,
