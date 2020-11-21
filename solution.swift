@@ -118,34 +118,32 @@ class Game {
         }
 
         currentState = currentState.successors(forCellState: aiCellState)
-            .map { (state: $0.state, value: minValue(state: $0.state)) }
-            .sorted { $0.value > $1.value }
+            .map { (state: $0.state, score: minScore(state: $0.state)) }
+            .sorted { $0.score > $1.score }
             .first?.state ?? currentState
     }
 
-    private func minValue(state: State) -> WinScore {
+    private func minScore(state: State) -> WinScore {
         guard !state.isTerminal else {
             return state.score(for: aiCellState)
         }
 
         return state.successors(forCellState: playerCellState)
-            .map { maxValue(state: $0.state) }
+            .map { maxScore(state: $0.state) }
             .sorted(by: <)
             .first ?? .win
     }
 
-    private func maxValue(state: State) -> WinScore {
+    private func maxScore(state: State) -> WinScore {
         guard !state.isTerminal else {
             return state.score(for: aiCellState)
         }
 
         return state.successors(forCellState: aiCellState)
-            .map { minValue(state: $0.state) }
+            .map { minScore(state: $0.state) }
             .sorted(by: >)
             .first ?? .loss
     }
-
-
 }
 
 // MARK: - Data structures
