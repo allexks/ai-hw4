@@ -3,51 +3,7 @@
 Game.main() // `@main` does not work yet: https://bugs.swift.org/browse/SR-12683
 class Game {
 
-    private let playerCellState: BoardCellState
-    private let aiCellState: BoardCellState
-
-    private(set) var isOver = false
-    private(set) var playerWinState: WinScore = .draw
-    private(set) var currentState: State {
-        didSet {
-            isOver = currentState.isTerminal
-            if let winningState = currentState.winningCellState {
-                playerWinState = winningState == playerCellState ? .win : .loss
-            } // no need for else as default is `.draw`
-        }
-    }
-
-
-    init(playerIsFirst: Bool) {
-        self.playerCellState = playerIsFirst ? .cross : .circle
-        self.aiCellState = playerIsFirst ? .circle : .cross
-        self.currentState = .init()
-
-        if !playerIsFirst {
-            makeAiMove()
-        }
-    }
-
-    func makePlayerMove(at coordinates: Coordinate) {
-        guard !isOver else { return }
-        guard currentState[coordinates] == .empty else {
-            print("ERROR: trying to move at an illegal position! Ignoring.")
-            return
-        }
-        let action = Action(newCellState: playerCellState, cellCoordinates: coordinates)
-        currentState = currentState.withAppliedAction(action)
-    }
-
-    func makeAiMove() {
-        guard !isOver else { return }
-        let successors = currentState.successors(forCellState: aiCellState)
-        guard !successors.isEmpty else {
-            isOver = true
-            return
-        }
-        // for now just zero intelligence
-        currentState = successors[0].state
-    }
+    // MARK: - Entry point
 
     static func main() {
         print("First (crosses) or second (circles)? [x/o] ", terminator: "")
@@ -99,8 +55,87 @@ class Game {
                 print("Oops! You lost. :(")
         }
         print("Good night.")
-
     }
+
+    // MARK: - Properties
+
+    private let playerCellState: BoardCellState
+    private let aiCellState: BoardCellState
+
+    private(set) var isOver = false
+    private(set) var playerWinState: WinScore = .draw
+    private(set) var currentState: State {
+        didSet {
+            isOver = currentState.isTerminal
+            if let winningState = currentState.winningCellState {
+                playerWinState = winningState == playerCellState ? .win : .loss
+            } // no need for else as default is `.draw`
+        }
+    }
+
+    // MARK: - Init
+
+    init(playerIsFirst: Bool) {
+        self.playerCellState = playerIsFirst ? .cross : .circle
+        self.aiCellState = playerIsFirst ? .circle : .cross
+        self.currentState = .init()
+
+        if !playerIsFirst {
+            makeAiMove()
+        }
+    }
+
+    // MARK: - Player
+
+    func makePlayerMove(at coordinates: Coordinate) {
+        guard !isOver else { return }
+        guard currentState[coordinates] == .empty else {
+            print("ERROR: trying to move at an illegal position! Ignoring.")
+            return
+        }
+        let action = Action(newCellState: playerCellState, cellCoordinates: coordinates)
+        currentState = currentState.withAppliedAction(action)
+    }
+
+    // MARK: - AI
+
+    func makeAiMove() {
+        guard !isOver else { return }
+        let successors = currentState.successors(forCellState: aiCellState)
+        guard !successors.isEmpty else {
+            isOver = true
+            return
+        }
+
+        currentState = currentState.successors(forCellState: aiCellState)
+            .map { (state: $0.state, value: minValue(state: $0.state)) }
+            .sorted { $0.value > $1.value }
+            .first?.state ?? currentState
+    }
+
+    private func minValue(state: State) -> WinScore {
+        guard !state.isTerminal else {
+            return state.score(for: aiCellState)
+        }
+
+        return state.successors(forCellState: playerCellState)
+            .map { maxValue(state: $0.state) }
+            .sorted(by: <)
+            .first ?? .win
+    }
+
+    private func maxValue(state: State) -> WinScore {
+        guard !state.isTerminal else {
+            return state.score(for: aiCellState)
+        }
+
+        return state.successors(forCellState: aiCellState)
+            .map { minValue(state: $0.state) }
+            .sorted(by: >)
+            .first ?? .loss
+    }
+
+
 }
 
 // MARK: - Data structures
@@ -131,7 +166,6 @@ extension Game {
         case draw = 0
         case loss = -1
     }
-
 }
 
 // MARK: - Data structures extensions
@@ -141,14 +175,15 @@ extension Game.State {
         self.board = Array(repeating: Array(repeating: .empty, count: size), count: size)
     }
 
+    private var isFull: Bool {
+        allCoordinates.map { self[$0] }.allSatisfy { $0 != .empty }
+    }
+
     var isTerminal: Bool {
-        winningCellState != nil
+        isFull || winningCellState != nil
     }
 
     var winningCellState: Game.BoardCellState? {
-        let isFull = allCoordinates.map { self[$0] }.allSatisfy { $0 != .empty }
-        guard !isFull else { return nil } // draw
-
         let size = board.count
         for cellState in [Game.BoardCellState]([.cross, .circle]) {
             // Horizontals
@@ -185,10 +220,19 @@ extension Game.State {
         return nil
     }
 
+    func score(for desiredWinningCellState: Game.BoardCellState) -> Game.WinScore {
+        guard let winningCellState = winningCellState else {
+            return .draw
+        }
+
+        return winningCellState == desiredWinningCellState ? .win : .loss
+    }
+
     func successors(
         forCellState newCellState: Game.BoardCellState
     ) -> [(action: Game.Action, state: Game.State)] {
-        allCoordinates
+        guard !isTerminal else { return [] }
+        return allCoordinates
             .filter { self[$0] == .empty }
             .map { Game.Action(newCellState: newCellState, cellCoordinates: $0) }
             .map { (action: $0, state: self.withAppliedAction($0)) }
@@ -214,6 +258,12 @@ extension Game.State {
     }
 
     func print() {
-        Swift.print(board.map{ row in row.map{cell in cell.rawValue}.joined(separator: "") }.joined(separator: "\n"))
+        Swift.print(board.map{ row in row.map{cell in cell.rawValue}.joined(separator: " ") }.joined(separator: "\n"))
+    }
+}
+
+extension Game.WinScore: Comparable {
+    static func < (lhs: Game.WinScore, rhs: Game.WinScore) -> Bool {
+        lhs.rawValue < rhs.rawValue
     }
 }
