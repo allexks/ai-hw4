@@ -81,7 +81,17 @@ class Game {
         self.currentState = .init()
 
         if !playerIsFirst {
-            makeAiMove()
+            // makeAiMove()
+            // optimization: the first turn is always best to be top left
+            currentState = currentState.withAppliedAction(
+                .init(
+                    newCellState: aiCellState,
+                    cellCoordinates: .init(
+                        rowIndex: 0,
+                        colIndex: 0
+                    )
+                )
+            )
         }
     }
 
