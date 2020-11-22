@@ -128,10 +128,9 @@ class Game {
             return state.score(for: aiCellState)
         }
 
-        return state.successors(forCellState: playerCellState)
-            .map { maxScore(state: $0.state) }
-            .sorted(by: <)
-            .first ?? .win
+        return state.successors(forCellState: playerCellState).reduce(.win) {
+            min($0, maxScore(state: $1.state))
+        }
     }
 
     private func maxScore(state: State) -> WinScore {
@@ -139,10 +138,9 @@ class Game {
             return state.score(for: aiCellState)
         }
 
-        return state.successors(forCellState: aiCellState)
-            .map { minScore(state: $0.state) }
-            .sorted(by: >)
-            .first ?? .loss
+        return state.successors(forCellState: aiCellState).reduce(.loss) {
+            max($0, minScore(state: $1.state))
+        }
     }
 }
 
