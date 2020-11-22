@@ -117,40 +117,64 @@ class Game {
             return
         }
 
-        currentState = currentState.successors(forCellState: aiCellState)
-            .map { (state: $0.state, score: minScore(state: $0.state)) }
-            .sorted { $0.score > $1.score }
-            .first?.state ?? currentState
+        var alpha: WinScore = .loss
+        var beta: WinScore = .win
+        currentState = maxScore(state: currentState, alpha: &alpha, beta: &beta).state
+
     }
 
-    private func minScore(state: State) -> WinScore {
+    private func minScore(
+        state: State, alpha: inout WinScore, beta: inout WinScore
+    ) -> (score: WinScore, state: State) {
         guard !state.isTerminal else {
-            return state.score(for: aiCellState)
+            return (score: state.score(for: aiCellState), state: state)
         }
 
         var minScore: WinScore = .win
+        var minState = state
         for successor in state.successors(forCellState: playerCellState) {
-            minScore = min(minScore, maxScore(state: successor.state))
+            let current = maxScore(state: successor.state, alpha: &alpha, beta: &beta)
+            if current.score < minScore {
+                minScore = current.score
+                minState = successor.state
+            }
+            // if minScore <= alpha {
+            //     return (score: minScore, state: minState)
+            // }
+            // beta = min(beta, minScore)
         }
-        return minScore
+        return (score: minScore, state: minState)
     }
 
-    private func maxScore(state: State) -> WinScore {
+    private func maxScore(
+        state: State, alpha: inout WinScore, beta: inout WinScore
+    ) -> (score: WinScore, state: State) {
         guard !state.isTerminal else {
-            return state.score(for: aiCellState)
+            return (score: state.score(for: aiCellState), state: state)
         }
 
         var maxScore: WinScore = .loss
+        var maxState = state
         for successor in state.successors(forCellState: aiCellState) {
-            maxScore = max(maxScore, minScore(state: successor.state))
+            let current = minScore(state: successor.state, alpha: &alpha, beta: &beta)
+            if current.score > maxScore {
+                maxScore = current.score
+                maxState = successor.state
+            }
+            // if maxScore >= beta {
+            //     return (score: maxScore, state: maxState)
+            // }
+            // alpha = max(alpha, maxScore)
         }
-        return maxScore
+        return (score: maxScore, state: maxState)
     }
 }
 
 // MARK: - Data structures
 
 extension Game {
+    typealias Successor = (state: State, action: Action)
+
     enum BoardCellState: String {
         case empty = "-"
         case cross = "X"
@@ -238,14 +262,12 @@ extension Game.State {
         return winningCellState == desiredWinningCellState ? .win : .loss
     }
 
-    func successors(
-        forCellState newCellState: Game.BoardCellState
-    ) -> [(action: Game.Action, state: Game.State)] {
+    func successors(forCellState newCellState: Game.BoardCellState) -> [Game.Successor] {
         guard !isTerminal else { return [] }
         return allCoordinates
             .filter { self[$0] == .empty }
             .map { Game.Action(newCellState: newCellState, cellCoordinates: $0) }
-            .map { (action: $0, state: self.withAppliedAction($0)) }
+            .map { (state: self.withAppliedAction($0), action: $0) }
     }
 
     func withAppliedAction(_ action: Game.Action) -> Game.State {
