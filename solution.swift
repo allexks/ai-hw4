@@ -44,6 +44,10 @@ class Game {
             print("AI move...")
             game.makeAiMove()
             game.currentState.print()
+
+            if game.makeLastMoveForPlayerIfNeeded() {
+                game.currentState.print()
+            }
         }
 
         switch game.playerWinState {
@@ -105,6 +109,15 @@ class Game {
         }
         let action = Action(newCellState: playerCellState, cellCoordinates: coordinates)
         currentState = currentState.withAppliedAction(action)
+    }
+
+    /// Return whether a move was made.
+    func makeLastMoveForPlayerIfNeeded() -> Bool {
+        guard !isOver else { return false }
+        let successors = currentState.successors(forCellState: playerCellState)
+        guard successors.count == 1, let finalState = successors.first?.state else { return false }
+        currentState = finalState
+        return true
     }
 
     // MARK: - AI
