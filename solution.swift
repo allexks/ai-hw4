@@ -32,8 +32,8 @@ class Game {
                 let second = input.last,
                 let row = Int(String(first)),
                 let col = Int(String(second)),
-                1...game.currentState.board.count ~= row &&
-                1...game.currentState.board[row-1].count ~= col
+                1...game.currentState.size ~= row &&
+                1...game.currentState.size ~= col
             else { continue }
 
             game.makePlayerMove(at: .init(rowIndex: row - 1, colIndex: col - 1))
@@ -195,7 +195,8 @@ extension Game {
     }
 
     struct State {
-        let board: [[BoardCellState]]
+        let size: Int
+        private let board: [[BoardCellState]]
     }
 
     struct Coordinate {
@@ -219,6 +220,7 @@ extension Game {
 
 extension Game.State {
     init(size: Int = 3) {
+        self.size = size
         self.board = Array(repeating: Array(repeating: .empty, count: size), count: size)
     }
 
@@ -231,7 +233,6 @@ extension Game.State {
     }
 
     var winningCellState: Game.BoardCellState? {
-        let size = board.count
         for cellState in [Game.BoardCellState]([.cross, .circle]) {
             // Horizontals
             for row in board {
@@ -287,7 +288,7 @@ extension Game.State {
         var newBoard = board
         let coord = action.cellCoordinates
         newBoard[coord.rowIndex][coord.colIndex] = action.newCellState
-        return .init(board: newBoard)
+        return .init(size: size, board: newBoard)
     }
 
     subscript(_ coordinate: Game.Coordinate) -> Game.BoardCellState {
@@ -295,8 +296,8 @@ extension Game.State {
     }
 
     private var allCoordinates: [Game.Coordinate] {
-        Array(0..<board.count).map { row in
-            Array(0..<board[row].count).map { col in
+        Array(0..<size).map { row in
+            Array(0..<size).map { col in
                 Game.Coordinate(rowIndex: row, colIndex: col)
             }
         }.reduce([], +) // flatten to 1D array
