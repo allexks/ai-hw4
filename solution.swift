@@ -145,7 +145,7 @@ class Game {
         var newBeta = beta
         for successor in state.successors(forCellState: playerCellState) {
             let current = maxScore(state: successor.state, alpha: alpha, beta: newBeta)
-            if current.score <= minScore {
+            if current.score < minScore {
                 minScore = current.score
                 minState = successor.state
             }
@@ -169,7 +169,7 @@ class Game {
         var newAlpha = alpha
         for successor in state.successors(forCellState: aiCellState) {
             let current = minScore(state: successor.state, alpha: newAlpha, beta: beta)
-            if current.score >= maxScore {
+            if current.score > maxScore {
                 maxScore = current.score
                 maxState = successor.state
             }
