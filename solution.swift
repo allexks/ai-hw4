@@ -46,6 +46,7 @@ class Game {
             game.currentState.print()
 
             if game.makeLastMoveForPlayerIfNeeded() {
+                print("Your last move:")
                 game.currentState.print()
             }
         }
