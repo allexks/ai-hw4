@@ -117,14 +117,11 @@ class Game {
             return
         }
 
-        var alpha: WinScore = .loss
-        var beta: WinScore = .win
-        currentState = maxScore(state: currentState, alpha: &alpha, beta: &beta).state
-
+        currentState = maxScore(state: currentState, alpha: .loss, beta: .win).state
     }
 
     private func minScore(
-        state: State, alpha: inout WinScore, beta: inout WinScore
+        state: State, alpha: WinScore, beta: WinScore
     ) -> (score: WinScore, state: State) {
         guard !state.isTerminal else {
             return (score: state.score(for: aiCellState), state: state)
@@ -132,22 +129,23 @@ class Game {
 
         var minScore: WinScore = .win
         var minState = state
+        var newBeta = beta
         for successor in state.successors(forCellState: playerCellState) {
-            let current = maxScore(state: successor.state, alpha: &alpha, beta: &beta)
-            if current.score < minScore {
+            let current = maxScore(state: successor.state, alpha: alpha, beta: newBeta)
+            if current.score <= minScore {
                 minScore = current.score
                 minState = successor.state
             }
-            // if minScore <= alpha {
-            //     return (score: minScore, state: minState)
-            // }
-            // beta = min(beta, minScore)
+            newBeta = min(newBeta, minScore)
+            if newBeta <= alpha {
+                return (score: minScore, state: minState)
+            }
         }
         return (score: minScore, state: minState)
     }
 
     private func maxScore(
-        state: State, alpha: inout WinScore, beta: inout WinScore
+        state: State, alpha: WinScore, beta: WinScore
     ) -> (score: WinScore, state: State) {
         guard !state.isTerminal else {
             return (score: state.score(for: aiCellState), state: state)
@@ -155,16 +153,17 @@ class Game {
 
         var maxScore: WinScore = .loss
         var maxState = state
+        var newAlpha = alpha
         for successor in state.successors(forCellState: aiCellState) {
-            let current = minScore(state: successor.state, alpha: &alpha, beta: &beta)
-            if current.score > maxScore {
+            let current = minScore(state: successor.state, alpha: newAlpha, beta: beta)
+            if current.score >= maxScore {
                 maxScore = current.score
                 maxState = successor.state
             }
-            // if maxScore >= beta {
-            //     return (score: maxScore, state: maxState)
-            // }
-            // alpha = max(alpha, maxScore)
+            newAlpha = max(newAlpha, maxScore)
+            if newAlpha >= beta {
+                return (score: maxScore, state: maxState)
+            }
         }
         return (score: maxScore, state: maxState)
     }
