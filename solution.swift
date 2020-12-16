@@ -131,21 +131,27 @@ class Game {
             return
         }
 
-        currentState = maxScore(state: currentState, alpha: .loss, beta: .win).state
+        let depth = 0
+        currentState = maxScore(
+            state: currentState,
+            alpha: .init(winScore: .loss, depth: depth),
+            beta: .init(winScore: .win, depth: depth),
+            depth: depth
+        ).state
     }
 
     private func minScore(
-        state: State, alpha: WinScore, beta: WinScore
-    ) -> (score: WinScore, state: State) {
+        state: State, alpha: Score, beta: Score, depth: Int
+    ) -> (score: Score, state: State) {
         guard !state.isTerminal else {
-            return (score: state.score(for: aiCellState), state: state)
+            return (score: state.score(for: aiCellState, depth: depth), state: state)
         }
 
-        var minScore: WinScore = .win
+        var minScore: Score = .init(winScore: .win, depth: depth)
         var minState = state
         var newBeta = beta
         for successor in state.successors(forCellState: playerCellState) {
-            let current = maxScore(state: successor.state, alpha: alpha, beta: newBeta)
+            let current = maxScore(state: successor.state, alpha: alpha, beta: newBeta, depth: depth + 1)
             if current.score < minScore {
                 minScore = current.score
                 minState = successor.state
@@ -159,17 +165,17 @@ class Game {
     }
 
     private func maxScore(
-        state: State, alpha: WinScore, beta: WinScore
-    ) -> (score: WinScore, state: State) {
+        state: State, alpha: Score, beta: Score, depth: Int
+    ) -> (score: Score, state: State) {
         guard !state.isTerminal else {
-            return (score: state.score(for: aiCellState), state: state)
+            return (score: state.score(for: aiCellState, depth: depth), state: state)
         }
 
-        var maxScore: WinScore = .loss
+        var maxScore: Score = .init(winScore: .loss, depth: depth)
         var maxState = state
         var newAlpha = alpha
         for successor in state.successors(forCellState: aiCellState) {
-            let current = minScore(state: successor.state, alpha: newAlpha, beta: beta)
+            let current = minScore(state: successor.state, alpha: newAlpha, beta: beta, depth: depth + 1)
             if current.score > maxScore {
                 maxScore = current.score
                 maxState = successor.state
@@ -213,6 +219,11 @@ extension Game {
         case win = 1
         case draw = 0
         case loss = -1
+    }
+
+    struct Score {
+        let winScore: WinScore
+        let depth: Int
     }
 }
 
@@ -268,12 +279,8 @@ extension Game.State {
         return nil
     }
 
-    func score(for desiredWinningCellState: Game.BoardCellState) -> Game.WinScore {
-        guard let winningCellState = winningCellState else {
-            return .draw
-        }
-
-        return winningCellState == desiredWinningCellState ? .win : .loss
+    func score(for desiredWinningCellState: Game.BoardCellState, depth: Int) -> Game.Score {
+        .init(winScore: winScore(for: desiredWinningCellState), depth: depth)
     }
 
     func successors(forCellState newCellState: Game.BoardCellState) -> [Game.Successor] {
@@ -295,6 +302,14 @@ extension Game.State {
         board[coordinate.rowIndex][coordinate.colIndex]
     }
 
+    private func winScore(for desiredWinningCellState: Game.BoardCellState) -> Game.WinScore {
+        guard let winningCellState = winningCellState else {
+            return .draw
+        }
+
+        return winningCellState == desiredWinningCellState ? .win : .loss
+    }
+
     private var allCoordinates: [Game.Coordinate] {
         Array(0..<size).map { row in
             Array(0..<size).map { col in
@@ -311,5 +326,15 @@ extension Game.State {
 extension Game.WinScore: Comparable {
     static func < (lhs: Game.WinScore, rhs: Game.WinScore) -> Bool {
         lhs.rawValue < rhs.rawValue
+    }
+}
+
+extension Game.Score: Comparable {
+    static func < (lhs: Game.Score, rhs: Game.Score) -> Bool {
+        if lhs.winScore == rhs.winScore {
+            return lhs.depth > rhs.depth
+        }
+
+        return lhs.winScore < rhs.winScore
     }
 }
